@@ -2,6 +2,8 @@ import hashlib
 from random import random
 from datetime import datetime
 
+from pyvotecore.schulze_method import SchulzeMethod
+
 from django.conf import settings
 from django.db import models
 from django.db.models import Q, Count
@@ -311,6 +313,83 @@ class Topic(models.Model):
         votes = self.options.filter(votes__voter=user)
         receipts = self.receipts.filter(voter=user)
         return votes.count() > 0 or receipts.count() > 0
+
+    def calculate_results(self):
+        # We may need to hand some extra text back to the caller
+        explanation = ''
+
+        if self.agenda.quorum and self.num_voters() < self.agenda.quorum:
+            # Mark invalid with no results.  Somewhat counter-intuitively,
+            # we consider the results to have been "calculated" in this case
+            # (specifically, we calculated that there are no valid results).
+            self.invalid = True
+            self.result_calculated = True
+            self.save()
+            return explanation
+
+        # Currently, proceed with results even if there are fewer results
+        # than expected.  It is conceivable that this is a valid outcome,
+        # for instance, if only three candidates receive any votes in a Board
+        # election, then there should be only three winners even though there
+        # are four or five positions.
+
+        options = self.counted_options().filter(num_votes__gt=0)
+        num_options = options.count()
+
+        if self.vote_type.name == TYPE_CHARTER:
+            # Charter amendments require a 2/3 majority.
+            for_option = options.get(name='For')
+            against_option = options.get(name='Against')
+            total_votes = for_option.num_votes + against_option.num_votes
+            if for_option.num_votes >= (total_votes * (2.0 / 3.0)):
+                for_option.result = True
+                for_option.save()
+            else:
+                against_option.result = True
+                against_option.save()
+
+            # It's not possible for this sort of measure to tie- it either reaches
+            # the two-thirds threshold or it does not.
+            self.invalid = False
+            self.result_calculated = True
+            self.save()
+            explanation = ('Please note that Charter Amendments require a 2/3 '
+                           'majority to pass.')
+
+        elif self.vote_type.max_votes <= self.vote_type.max_winners:
+            # Flag ties that affect the validity of the results,
+            # and set any tied options after the valid winning range
+            # to a "winning" result as well, indicating that they are all
+            # equally plausible as winners despite producing more winners
+            # than are allowed.
+            i = self.vote_type.max_winners
+            while (i > 0 and i < num_options and
+                   options[i-1].num_votes == options[i].num_votes):
+                self.invalid = True
+
+                # Note that setting options[i].result = True and then
+                # saving options[i] does not work, probably as a side effect
+                # of evaluationg the options queryset (it's not actualy an array)
+                option = options[i]
+                option.result = True
+                option.save()
+                i += 1
+
+            # Set all non-tied winning results.
+            for option in options[0:self.vote_type.max_winners]:
+                option.result = True
+                option.save()
+
+            self.result_calculated = True
+            self.save()
+
+        elif self.vote_type.max_votes > 1 and self.vote_type.max_winners == 1:
+            # TODO: Implement Schulze method.
+            pass
+        else:
+            raise Exception("Ranked choice voting with multiple winners "
+                            "is not implemented")
+        return explanation
 
     def __unicode__(self):
         return self.name

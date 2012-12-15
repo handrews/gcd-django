@@ -101,80 +101,11 @@ def _calculate_results(unresolved):
     TODO: Handle the case of abstaning being a "winning" option.
     """
 
-    extra = ''
     for topic in unresolved:
-        # if topic.agenda.quorum:
-            # raise Exception, '%d / %d' % (topic.agenda.quorum, topic.num_voters())
-        if topic.agenda.quorum and topic.num_voters() < topic.agenda.quorum:
-            # Mark invalid with no results.  Somewhat counter-intuitively,
-            # we consider the results to have been "calculated" in this case
-            # (specifically, we calculated that there are no valid results).
-            topic.invalid = True
-            topic.result_calculated = True
-            topic.save()
-            continue
-
-        # Currently, proceed with results even if there are fewer results
-        # than expected.  It is conceivable that this is a valid outcome,
-        # for instance, if only three candidates receive any votes in a Board
-        # election, then there should be only three winners even though there
-        # are four or five positions.
-
-        options = topic.counted_options().filter(num_votes__gt=0)
-        num_options = options.count()
-
-        if topic.vote_type.name == TYPE_CHARTER:
-            # Charter amendments require a 2/3 majority.
-            for_option = options.get(name='For')
-            against_option = options.get(name='Against')
-            total_votes = for_option.num_votes + against_option.num_votes
-            if for_option.num_votes >= (total_votes * (2.0 / 3.0)):
-                for_option.result = True
-                for_option.save()
-            else:
-                against_option.result = True
-                against_option.save()
-
-            # It's not possible for this sort of measure to tie- it either reaches
-            # the two-thirds threshold or it does not.
-            topic.invalid = False
-            topic.result_calculated = True
-            topic.save()
-            extra = ('\n\nPlease note that Charter Amendments require a 2/3 '
-                     'majority to pass.')
-
-        elif topic.vote_type.max_votes <= topic.vote_type.max_winners:
-            # Flag ties that affect the validity of the results,
-            # and set any tied options after the valid winning range
-            # to a "winning" result as well, indicating that they are all
-            # equally plausible as winners despite producing more winners
-            # than are allowed.
-            i = topic.vote_type.max_winners
-            while (i > 0 and i < num_options and
-                   options[i-1].num_votes == options[i].num_votes):
-                topic.invalid = True
-
-                # Note that setting options[i].result = True and then
-                # saving options[i] does not work, probably as a side effect
-                # of evaluationg the options queryset (it's not actualy an array)
-                option = options[i]
-                option.result = True
-                option.save()
-                i += 1
-
-            # Set all non-tied winning results.
-            for option in options[0:topic.vote_type.max_winners]:
-                option.result = True
-                option.save()
-
-            topic.result_calculated = True
-            topic.save()
-
-        else:
-            # TODO: Implement Schulze method.
-            return
-
-        _send_result_email(topic, extra)
+        explanation = topic.calculate_results()
+        if explanation:
+            explanation = '\n\n' + explanation
+        _send_result_email(topic, explanation)
 
 def _send_result_email(topic, extra=''):
     for list_config in topic.agenda.agenda_mailing_lists.all():
