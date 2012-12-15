@@ -13,4 +13,5 @@ django-imagekit
 git+git://github.com/GrandComicsDatabase/django-taggit.git
 git+git://github.com/GrandComicsDatabase/django-templatesadmin.git
 python-stdnum
+python-vote-core
 wsgiref
