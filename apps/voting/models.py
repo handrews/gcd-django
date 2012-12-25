@@ -314,6 +314,8 @@ class Topic(models.Model):
         receipts = self.receipts.filter(voter=user)
         return votes.count() > 0 or receipts.count() > 0
 
+    def tally_ranked_ballots(self):
+
     def calculate_results(self):
         # We may need to hand some extra text back to the caller
         explanation = ''
@@ -337,59 +339,73 @@ class Topic(models.Model):
         num_options = options.count()
 
         if self.vote_type.name == TYPE_CHARTER:
-            # Charter amendments require a 2/3 majority.
-            for_option = options.get(name='For')
-            against_option = options.get(name='Against')
-            total_votes = for_option.num_votes + against_option.num_votes
-            if for_option.num_votes >= (total_votes * (2.0 / 3.0)):
-                for_option.result = True
-                for_option.save()
-            else:
-                against_option.result = True
-                against_option.save()
-
-            # It's not possible for this sort of measure to tie- it either reaches
-            # the two-thirds threshold or it does not.
-            self.invalid = False
-            self.result_calculated = True
-            self.save()
-            explanation = ('Please note that Charter Amendments require a 2/3 '
-                           'majority to pass.')
-
+            explanation = self._calculate_charter_results(options, num_options,
+                                                          total_votes)
         elif self.vote_type.max_votes <= self.vote_type.max_winners:
-            # Flag ties that affect the validity of the results,
-            # and set any tied options after the valid winning range
-            # to a "winning" result as well, indicating that they are all
-            # equally plausible as winners despite producing more winners
-            # than are allowed.
-            i = self.vote_type.max_winners
-            while (i > 0 and i < num_options and
-                   options[i-1].num_votes == options[i].num_votes):
-                self.invalid = True
-
-                # Note that setting options[i].result = True and then
-                # saving options[i] does not work, probably as a side effect
-                # of evaluationg the options queryset (it's not actualy an array)
-                option = options[i]
-                option.result = True
-                option.save()
-                i += 1
-
-            # Set all non-tied winning results.
-            for option in options[0:self.vote_type.max_winners]:
-                option.result = True
-                option.save()
-
-            self.result_calculated = True
-            self.save()
+            self._calculate_equal_weight_results(options, num_options)
 
         elif self.vote_type.max_votes > 1 and self.vote_type.max_winners == 1:
-            # TODO: Implement Schulze method.
-            pass
+            self._calculate_ranked_vote_results(options, num_options)
         else:
             raise Exception("Ranked choice voting with multiple winners "
                             "is not implemented")
         return explanation
+
+    def _calculate_charter_results(self, options, num_options, total_votes):
+        # Charter amendments require a 2/3 majority.
+        for_option = options.get(name='For')
+        against_option = options.get(name='Against')
+        total_votes = for_option.num_votes + against_option.num_votes
+        if for_option.num_votes >= (total_votes * (2.0 / 3.0)):
+            for_option.result = True
+            for_option.save()
+            explanation = ''
+        else:
+            against_option.result = True
+            against_option.save()
+            explanation = ('Please note that Charter Amendments require a 2/3 '
+                           'majority to pass.')
+
+        # It's not possible for this sort of measure to tie- it either reaches
+        # the two-thirds threshold or it does not.
+        self.invalid = False
+        self.result_calculated = True
+        self.save()
+        return explanation
+
+    def _calculate_equal_weight_results(self, options, num_options):
+        # Flag ties that affect the validity of the results,
+        # and set any tied options after the valid winning range
+        # to a "winning" result as well, indicating that they are all
+        # equally plausible as winners despite producing more winners
+        # than are allowed.
+        i = self.vote_type.max_winners
+        while (i > 0 and i < num_options and
+               options[i-1].num_votes == options[i].num_votes):
+            self.invalid = True
+
+            # Note that setting options[i].result = True and then
+            # saving options[i] does not work, probably as a side effect
+            # of evaluationg the options queryset (it's not actualy an array)
+            option = options[i]
+            option.result = True
+            option.save()
+            i += 1
+
+        # Set all non-tied winning results.
+        for option in options[0:self.vote_type.max_winners]:
+            option.result = True
+            option.save()
+
+        self.result_calculated = True
+        self.save()
+
+    def _calculate_ranked_vote_results(self, options, num_options):
+        ballot_counts = []
+        for vote in self.votes.order_by('user', 'rank'):
+            ballot = []
+                
+        # TODO: Implement Schulze method.
 
     def __unicode__(self):
         return self.name
@@ -493,6 +509,10 @@ class Vote(models.Model):
         if self.rank is not None:
             return string + (' %d' % self.rank)
         return string
+
+    def __eq__(self, other):
+        return (self.option.id == other.option.id and 
+                self.rank == other.rank)
 
 class ExpectedVoter(models.Model):
     voter = models.ForeignKey(User, related_name='voting_expectations')
