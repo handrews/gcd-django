@@ -315,6 +315,7 @@ class Topic(models.Model):
         return votes.count() > 0 or receipts.count() > 0
 
     def tally_ranked_ballots(self):
+        pass
 
     def calculate_results(self):
         # We may need to hand some extra text back to the caller
@@ -401,11 +402,48 @@ class Topic(models.Model):
         self.save()
 
     def _calculate_ranked_vote_results(self, options, num_options):
-        ballot_counts = []
-        for vote in self.votes.order_by('user', 'rank'):
-            ballot = []
-                
-        # TODO: Implement Schulze method.
+        ballot_counts = {}
+        current_user = None
+        current_ballot = None
+
+        # We need to be able to swtich between mutable in an immutable forms.
+        def _tuple_of_tuples(list_of_lists):
+            return tuple([tuple(l) for l in list_of_lists])
+        def _list_of_lists(tuple_of_tuples):
+            return [[y for y in x] for x in tuple_of_tuple]
+
+        for vote in self.votes.order_by('user', 'rank', 'option__id')\
+                              .select_related('option', 'user'):
+            # The voter may mark options with numbers from 1 to max_votes
+            # inclusive.  These go into the ballot in that order, which
+            # when passed to a SchulzeMethod object treats the first item
+            # in the ballot as the most desired result.
+            if vote.user != current_user:
+                if current_ballot is not None:
+                    # Make an immutable version for use as a dictionary key,
+                    # and then track how many of this exact ballot configuration
+                    # we have found.
+                    tot = _tuple_of_tuple(current_ballot)
+                    ballot_counts[tot] = ballot_counts.get(tot, 0) + 1
+                current_user = vote.user
+                current_ballot = [[] for i in xrange(0, self.max_votes)]
+            current_ballot[vote.rank].append(option)
+        if current_ballot is not None:
+            tot = _tuple_of_tuple(current_ballot)
+            ballot_counts[tot] = ballot_counts.get(tot, 0) + 1
+        input = [{'count': c, 'ballot': _list_of_lists(b)}
+                 for b, c in ballot_counts.items()]
+
+        data = SchulzeMethod(input, ballot_notation='grouping').as_dict()
+        if 'tied_winners' in data:
+            pass
+            # TODO: Handle tie.
+
+        winner = data['winner']
+        winner.result = True
+        winner.save()
+        self.result_calculated = True
+        self.save()
 
     def __unicode__(self):
         return self.name
