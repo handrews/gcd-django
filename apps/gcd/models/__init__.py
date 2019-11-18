@@ -28,4 +28,4 @@ from .award import Award, ReceivedAward
 from .datasource import DataSource, SourceType
 
 def _display_uncertain(value, flag):
-    return u'%s?' % value if flag else value
+    return '%s?' % value if flag else value

@@ -42,10 +42,10 @@ def _cant_get_key(request):
 def store_select_data(request, select_key, data):
     if not select_key:
         salt = hashlib.sha1(str(random())).hexdigest()[:5]
-        select_key = hashlib.sha1(salt + unicode(request.user)).hexdigest()
+        select_key = hashlib.sha1(salt + str(request.user)).hexdigest()
     for item in data:
         request.session['%s_%s' % (select_key, item)] = data[item]
-    request.session['%s_items' % select_key] = data.keys()
+    request.session['%s_items' % select_key] = list(data.keys())
     return select_key
 
 
@@ -434,7 +434,7 @@ class CreatorNameAutocomplete(LoginRequiredMixin,
 class FeatureAutocomplete(LoginRequiredMixin,
                           autocomplete.Select2QuerySetView):
     def get_result_label(self, feature):
-        return format_html(u'{} ({})', feature.name, feature.language.name)
+        return format_html('{} ({})', feature.name, feature.language.name)
 
     def get_queryset(self):
         qs = Feature.objects.filter(deleted=False)

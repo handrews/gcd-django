@@ -226,17 +226,17 @@ def remove_leading_article(name):
 
 
 def on_sale_date_as_string(issue):
-    date = u''
+    date = ''
     if issue.year_on_sale:
-        date += u'{0:?<4d}'.format(issue.year_on_sale)
+        date += '{0:?<4d}'.format(issue.year_on_sale)
     elif issue.day_on_sale or issue.month_on_sale:
-        date += u'????'
+        date += '????'
     if issue.month_on_sale:
-        date += u'-{0:02d}'.format(issue.month_on_sale)
+        date += '-{0:02d}'.format(issue.month_on_sale)
     elif issue.day_on_sale:
-        date += u'-??'
+        date += '-??'
     if issue.day_on_sale:
-        date += u'-{0:02d}'.format(issue.day_on_sale)
+        date += '-{0:02d}'.format(issue.day_on_sale)
     return date
 
 
@@ -258,15 +258,15 @@ def on_sale_date_fields(on_sale_date):
 
 
 def get_keywords(source):
-    return u'; '.join(unicode(i) for i in source.keywords.all()
+    return '; '.join(str(i) for i in source.keywords.all()
                                                 .order_by('name'))
 
 
 def save_keywords(revision, source):
     if revision.keywords:
         source.keywords.set(*[x.strip() for x in revision.keywords.split(';')])
-        revision.keywords = u'; '.join(
-            unicode(i) for i in source.keywords.all().order_by('name'))
+        revision.keywords = '; '.join(
+            str(i) for i in source.keywords.all().order_by('name'))
         revision.save()
     else:
         source.keywords.set()
@@ -448,7 +448,7 @@ class Changeset(models.Model):
 
     def revision_count(self):
         return reduce(operator.add,
-                      map(lambda rs: rs.count(), self._revision_sets()))
+                      [rs.count() for rs in self._revision_sets()])
 
     def inline(self):
         """
@@ -524,20 +524,20 @@ class Changeset(models.Model):
         if self.change_type in CTYPES_BULK:
             ir_count = self.issuerevisions.count()
             if self.change_type == CTYPES['issue_bulk']:
-                return unicode(u'%s and %d other issues' %
+                return str('%s and %d other issues' %
                                (self.issuerevisions.all()[0], ir_count - 1))
             if self.change_type == CTYPES['issue_add']:
                 if ir_count == 1:
-                    return unicode(self.issuerevisions.all()[0])
+                    return str(self.issuerevisions.all()[0])
                 elif ir_count > 1:
                     first = self.issuerevisions \
                                 .order_by('revision_sort_code')[0]
                     last = self.issuerevisions \
                                .order_by('-revision_sort_code')[0]
-                    return u'%s %s - %s' % (first.series,
+                    return '%s %s - %s' % (first.series,
                                             first.display_number,
                                             last.display_number)
-            return u'Unknown State'
+            return 'Unknown State'
         elif self.change_type == CTYPES['issue']:
             return self.cached_revisions.next().queue_name()
         elif self.change_type == CTYPES['two_issues']:
@@ -562,9 +562,9 @@ class Changeset(models.Model):
 
     def queue_descriptor(self):
         if self.change_type == CTYPES['issue_add']:
-            return u'[ADDED]'
+            return '[ADDED]'
         elif self.change_type == CTYPES['variant_add']:
-            return u'[VARIANT + BASE]'
+            return '[VARIANT + BASE]'
         return self.cached_revisions.next().queue_descriptor()
 
     def changeset_action(self):
@@ -896,15 +896,15 @@ class Changeset(models.Model):
 
     def __unicode__(self):
         if self.inline():
-            return unicode(self.inline_revision())
+            return str(self.inline_revision())
         if self.change_type in CTYPES_BULK:
             return self.queue_name()
         if self.change_type == CTYPES['issue']:
-            return unicode(self.issuerevisions.all()[0])
+            return str(self.issuerevisions.all()[0])
         if self.change_type == CTYPES['two_issues']:
             return self.queue_name()
         if self.change_type == CTYPES['variant_add']:
-            return self.queue_name() + u' [Variant]'
+            return self.queue_name() + ' [Variant]'
         if self.id:
             return 'Changeset: %d' % self.id
         return "Changeset"
@@ -1261,7 +1261,7 @@ class Revision(models.Model):
         cls._multi_value_fields = {}
         cls._meta_fields = {}
 
-        for name, data_field in data_fields.iteritems():
+        for name, data_field in data_fields.items():
             # Currently we do not have relations that are meta fields,
             # so just handle those here and move on to the next field.
             if name in meta_names:
@@ -1571,11 +1571,11 @@ class Revision(models.Model):
         # old values even for deprecated fields.
         rev_kwargs = {field: getattr(data_object, field)
                       for field
-                      in cls._get_single_value_fields().viewkeys() - exclude}
+                      in cls._get_single_value_fields().keys() - exclude}
 
         # Keywords are not assignable but behave the same way whenever
         # they are present, so handle them here.
-        if 'keywords' in cls._get_regular_fields().viewkeys() - exclude:
+        if 'keywords' in cls._get_regular_fields().keys() - exclude:
             rev_kwargs['keywords'] = get_keywords(data_object)
 
         # Instantiate the revision.  Since we do not know the exact
@@ -1601,7 +1601,7 @@ class Revision(models.Model):
 
         # Populate all of the many to many relations that don't use
         # their own separate revision classes.
-        for m2m in revision._get_multi_value_fields().viewkeys() - exclude:
+        for m2m in revision._get_multi_value_fields().keys() - exclude:
             getattr(revision, m2m).add(*list(getattr(data_object, m2m).all()))
         revision._post_m2m_add(fork=fork, fork_source=data_object,
                                exclude=exclude)
@@ -1710,9 +1710,9 @@ class Revision(models.Model):
 
         deltas = {
             k: new_counts.get(k, 0) - old_counts.get(k, 0)
-            for k in old_counts.viewkeys() | new_counts.viewkeys()
+            for k in old_counts.keys() | new_counts.keys()
         }
-        if any(deltas.values()) or True in changes.values():
+        if any(deltas.values()) or True in list(changes.values()):
             for parent_tuple in self._get_parent_field_tuples():
                 self._adjust_parent_counts(parent_tuple, changes, deltas,
                                            old_counts, new_counts)
@@ -2065,15 +2065,15 @@ class Revision(models.Model):
         for field_name in self.field_list():
             old = get_prev_value(field_name)
             new = getattr(self, field_name)
-            if type(new) == unicode:
+            if type(new) == str:
                 field_changed = old.strip() != new.strip()
             elif isinstance(old, Manager):
                 old = old.all().values_list('id', flat=True)
                 new = new.all().values_list('id', flat=True)
                 field_changed = set(old) != set(new)
             elif isinstance(old, Date):
-                old = unicode(old)
-                new = unicode(new)
+                old = str(old)
+                new = str(new)
                 field_changed = old != new
             else:
                 field_changed = old != new
@@ -2134,17 +2134,17 @@ class Revision(models.Model):
         return self._queue_name()
 
     def _queue_name(self):
-        return unicode(self)
+        return str(self)
 
     def queue_descriptor(self):
         """
         Display descriptor for queue name
         """
         if self.source is None:
-            return u'[ADDED]'
+            return '[ADDED]'
         if self.deleted:
-            return u'[DELETED]'
-        return u''
+            return '[DELETED]'
+        return ''
 
     def save_added_revision(self, changeset, **kwargs):
         """
@@ -2206,7 +2206,7 @@ class OngoingReservation(models.Model):
     created = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __unicode__(self):
-        return u'%s reserved by %s' % (self.series, self.indexer.indexer)
+        return '%s reserved by %s' % (self.series, self.indexer.indexer)
 
 
 class PublisherRevisionBase(Revision):
@@ -2227,7 +2227,7 @@ class PublisherRevisionBase(Revision):
     def __unicode__(self):
         if self.source is None:
             return self.name
-        return unicode(self.source)
+        return str(self.source)
 
     ######################################
     # TODO old methods, t.b.c
@@ -2337,7 +2337,7 @@ class PublisherRevision(PublisherRevisionBase):
     # TODO old methods, t.b.c
 
     def _queue_name(self):
-        return u'%s (%s, %s)' % (self.name, self.year_began,
+        return '%s (%s, %s)' % (self.name, self.year_began,
                                  self.country.code.upper())
 
     def _field_list(self):
@@ -2450,7 +2450,7 @@ class IndiciaPublisherRevision(PublisherRevisionBase):
         return PublisherRevisionBase._imps_for(self, field_name)
 
     def _queue_name(self):
-        return u'%s: %s (%s, %s)' % (self.parent.name,
+        return '%s: %s (%s, %s)' % (self.parent.name,
                                      self.name,
                                      self.year_began,
                                      self.country.code.upper())
@@ -2540,7 +2540,7 @@ class BrandGroupRevision(PublisherRevisionBase):
         return PublisherRevisionBase._imps_for(self, field_name)
 
     def _queue_name(self):
-        return u'%s: %s (%s)' % (self.parent.name, self.name, self.year_began)
+        return '%s: %s (%s)' % (self.parent.name, self.name, self.year_began)
 
 
 class BrandRevisionManager(RevisionManager):
@@ -2644,7 +2644,7 @@ class BrandRevision(PublisherRevisionBase):
         return PublisherRevisionBase._imps_for(self, field_name)
 
     def _queue_name(self):
-        return u'%s: %s (%s)' % (self.group.all()[0].name, self.name,
+        return '%s: %s (%s)' % (self.group.all()[0].name, self.name,
                                  self.year_began)
 
 
@@ -2716,7 +2716,7 @@ class BrandUseRevision(Revision):
         self.emblem = emblem
 
     def __unicode__(self):
-        return u'brand emblem %s used by %s.' % (self.emblem, self.publisher)
+        return 'brand emblem %s used by %s.' % (self.emblem, self.publisher)
 
     ######################################
     # TODO old methods, t.b.c
@@ -2753,7 +2753,7 @@ class BrandUseRevision(Revision):
         return 0
 
     def _queue_name(self):
-        return u'%s at %s (%s)' % (self.emblem.name, self.publisher.name,
+        return '%s at %s (%s)' % (self.emblem.name, self.publisher.name,
                                    self.year_began)
 
 
@@ -2961,7 +2961,7 @@ class CoverRevision(Revision):
         return self.cover.get_absolute_url()
 
     def __unicode__(self):
-        return unicode(self.issue)
+        return str(self.issue)
 
 
 class SeriesRevisionManager(RevisionManager):
@@ -3137,7 +3137,7 @@ class SeriesRevision(Revision):
             # sort, and do not propagate it.  The approval process
             # should catch that sort of thing.
             # TODO: Consider a validator on year_began?
-            if len(unicode(self.year_began)) == 4:
+            if len(str(self.year_began)) == 4:
                 issue_revision.key_date = '%d-00-00' % self.year_began
             issue_revision.save()
 
@@ -3148,8 +3148,8 @@ class SeriesRevision(Revision):
 
     def __unicode__(self):
         if self.series is None:
-            return u'%s (%s series)' % (self.name, self.year_began)
-        return unicode(self.series)
+            return '%s (%s series)' % (self.name, self.year_began)
+        return str(self.series)
 
     ######################################
     # TODO old methods, t.b.c
@@ -3158,7 +3158,7 @@ class SeriesRevision(Revision):
         fields = get_series_field_list()
         if self.previous() and (self.previous().publisher != self.publisher):
             fields = fields[0:2] + ['publisher'] + fields[2:]
-        return fields + [u'publication_notes']
+        return fields + ['publication_notes']
 
     def _get_blank_values(self):
         return {
@@ -3311,7 +3311,7 @@ class SeriesBondRevision(Revision):
         return 'series_bond'
 
     def _queue_name(self):
-        return u'%s continues at %s' % (self.origin, self.target)
+        return '%s continues at %s' % (self.origin, self.target)
 
     def commit_to_display(self):
         series_bond = self.series_bond
@@ -3338,13 +3338,13 @@ class SeriesBondRevision(Revision):
 
     def __unicode__(self):
         if self.origin_issue:
-            object_string = u'%s' % self.origin_issue
+            object_string = '%s' % self.origin_issue
         else:
-            object_string = u'%s' % self.origin
+            object_string = '%s' % self.origin
         if self.target_issue:
-            object_string += u' continues at %s' % self.target_issue
+            object_string += ' continues at %s' % self.target_issue
         else:
-            object_string += u' continues at %s' % self.target
+            object_string += ' continues at %s' % self.target
         return object_string
 
 
@@ -3751,9 +3751,9 @@ class IssueRevision(Revision):
     def display_number(self):
         number = issue_descriptor(self)
         if number:
-            return u'#' + number
+            return '#' + number
         else:
-            return u''
+            return ''
 
     @property
     def other_issue_revision(self):
@@ -4143,31 +4143,31 @@ class IssueRevision(Revision):
 
     def full_name(self):
         if self.variant_name:
-            return u'%s %s [%s]' % (self.series.full_name(),
+            return '%s %s [%s]' % (self.series.full_name(),
                                     self.display_number,
                                     self.variant_name)
         else:
-            return u'%s %s' % (self.series.full_name(), self.display_number)
+            return '%s %s' % (self.series.full_name(), self.display_number)
 
     def short_name(self):
         if self.variant_name:
-            return u'%s %s [%s]' % (self.series.name,
+            return '%s %s [%s]' % (self.series.name,
                                     self.display_number,
                                     self.variant_name)
         else:
-            return u'%s %s' % (self.series.name, self.display_number)
+            return '%s %s' % (self.series.name, self.display_number)
 
     def __unicode__(self):
         """
         Re-implement locally instead of using self.issue because it may change.
         """
         if self.variant_name:
-            return u'%s %s [%s]' % (self.series, self.display_number,
+            return '%s %s [%s]' % (self.series, self.display_number,
                                     self.variant_name)
         elif self.display_number:
-            return u'%s %s' % (self.series, self.display_number)
+            return '%s %s' % (self.series, self.display_number)
         else:
-            return u'%s' % self.series
+            return '%s' % self.series
 
 
 class PreviewIssue(Issue):
@@ -4386,10 +4386,10 @@ class StoryRevision(Revision):
         revision.sequence_number = issue_revision.next_sequence_number()
         if revision.issue.series.language != story.issue.series.language:
             if revision.letters:
-                revision.letters = u'?'
-            revision.title = u''
+                revision.letters = '?'
+            revision.title = ''
             revision.title_inferred = False
-            revision.first_line = u''
+            revision.first_line = ''
         revision.save()
         return revision
 
@@ -4461,9 +4461,9 @@ class StoryRevision(Revision):
                 source_story = fork_source
             # copy single value fields which are specific to biblio_entry
             for field in biblio_revision.\
-                           _get_single_value_fields().viewkeys() - \
+                           _get_single_value_fields().keys() - \
                          biblio_revision.storyrevision_ptr.\
-                           _get_single_value_fields().viewkeys():
+                           _get_single_value_fields().keys():
                 setattr(biblio_revision, field,
                         getattr(source_story.biblioentry, field))
             biblio_revision.save()
@@ -4539,7 +4539,7 @@ class StoryRevision(Revision):
         """
         Re-implement locally instead of using self.story because it may change.
         """
-        return u'%s (%s: %s)' % (self.feature, self.type, self.page_count)
+        return '%s (%s: %s)' % (self.feature, self.type, self.page_count)
 
     ######################################
     # TODO old methods, t.b.c.
@@ -5027,7 +5027,7 @@ class FeatureRevision(Revision):
         return self.feature.get_absolute_url()
 
     def __unicode__(self):
-        return u'%s' % (self.name)
+        return '%s' % (self.name)
 
     ######################################
     # TODO old methods, t.b.c
@@ -5066,7 +5066,7 @@ class FeatureRevision(Revision):
         return 0
 
     def _queue_name(self):
-        return u'%s (%s)' % (self.name, self.year_created)
+        return '%s (%s)' % (self.name, self.year_created)
 
 
 class FeatureLogoRevisionManager(RevisionManager):
@@ -5121,7 +5121,7 @@ class FeatureLogoRevision(Revision):
         return self.feature_logo.get_absolute_url()
 
     def __unicode__(self):
-        return u'%s' % (self.name)
+        return '%s' % (self.name)
 
     ######################################
     # TODO old methods, t.b.c
@@ -5159,7 +5159,7 @@ class FeatureLogoRevision(Revision):
         return 0
 
     def _queue_name(self):
-        return u'%s (%s)' % (self.name, self.year_began)
+        return '%s (%s)' % (self.name, self.year_began)
 
 
 class FeatureRelationRevisionManager(RevisionManager):
@@ -5234,9 +5234,9 @@ class FeatureRelationRevision(Revision):
             self.save()
 
     def __unicode__(self):
-        return u'%s >%s< %s' % (unicode(self.from_feature),
-                                unicode(self.relation_type),
-                                unicode(self.to_feature)
+        return '%s >%s< %s' % (str(self.from_feature),
+                                str(self.relation_type),
+                                str(self.to_feature)
                                 )
 
 
@@ -5630,13 +5630,13 @@ class ReprintRevision(Revision):
                     story = self.origin_revision
         if story:
             issue = story.issue
-            reprint = u'%s %s <br><i>sequence</i> ' \
+            reprint = '%s %s <br><i>sequence</i> ' \
                       '<a target="_blank" href="%s#%d">%s %s</a>' % \
                       (direction, esc(issue.full_name()),
                        issue.get_absolute_url(), story.id, esc(story),
                        show_title(story, True))
         else:
-            reprint = u'%s <a target="_blank" href="%s">%s</a>' % \
+            reprint = '%s <a target="_blank" href="%s">%s</a>' % \
                       (direction, issue.get_absolute_url(),
                        esc(issue.full_name()))
         if self.notes:
@@ -5664,19 +5664,19 @@ class ReprintRevision(Revision):
                 origin = self.origin_story
             else:
                 origin = self.origin_revision
-            reprint = u'%s %s of %s ' % (
+            reprint = '%s %s of %s ' % (
                 origin, show_title(origin, True), origin.issue)
         else:
-            reprint = u'%s ' % (self.origin_issue)
+            reprint = '%s ' % (self.origin_issue)
         if self.target_story or self.target_revision:
             if self.target_story:
                 target = self.target_story
             else:
                 target = self.target_revision
-            reprint += u'reprinted in %s %s of %s' % (
+            reprint += 'reprinted in %s %s of %s' % (
                 target, show_title(target, True), target.issue)
         else:
-            reprint += u'reprinted in %s' % (self.target_issue)
+            reprint += 'reprinted in %s' % (self.target_issue)
         if self.notes:
             reprint = '%s [%s]' % (reprint, esc(self.notes))
         if self.deleted:
@@ -5746,8 +5746,8 @@ class ImageRevision(Revision):
     is_replacement = models.BooleanField(default=False)
 
     def description(self):
-        return u'%s for %s' % (self.type.description,
-                               unicode(self.object.full_name()))
+        return '%s for %s' % (self.type.description,
+                               str(self.object.full_name()))
 
     def _get_source(self):
         return self.image
@@ -5815,8 +5815,8 @@ class ImageRevision(Revision):
 
     def __unicode__(self):
         if self.source is None:
-            return u'Image for %s' % unicode(self.object)
-        return unicode(self.source)
+            return 'Image for %s' % str(self.object)
+        return str(self.source)
 
 
 class AwardRevisionManager(RevisionManager):
@@ -5932,13 +5932,13 @@ class ReceivedAwardRevision(Revision):
 
     def __unicode__(self):
         if self.award:
-            name = u'%s - %s' % (self.award.name, self.award_name)
+            name = '%s - %s' % (self.award.name, self.award_name)
         else:
-            name = u'%s' % (self.award_name)
+            name = '%s' % (self.award_name)
         if self.award_year:
-            return u'%s: %s (%d)' % (self.recipient, name, self.award_year)
+            return '%s: %s (%d)' % (self.recipient, name, self.award_year)
         else:
-            return u'%s: %s' % (self.recipient, name)
+            return '%s: %s' % (self.recipient, name)
 
 
     # #####################################################################
@@ -6092,8 +6092,8 @@ class DataSourceRevision(Revision):
             self.save()
 
     def __unicode__(self):
-        return u'%s - %s' % (
-            unicode(self.field), unicode(self.source_type.type))
+        return '%s - %s' % (
+            str(self.field), str(self.source_type.type))
 
 
 def reserve_data_sources(data_sources, changeset, sourced_revision,
@@ -6335,7 +6335,7 @@ class CreatorRevision(Revision):
         return self.creator.get_absolute_url()
 
     def __unicode__(self):
-        return u'%s' % unicode(self.gcd_official_name)
+        return '%s' % str(self.gcd_official_name)
 
     # #####################################################################
     # Old methods. t.b.c, if deprecated.
@@ -6528,9 +6528,9 @@ class CreatorRelationRevision(Revision):
             self.save()
 
     def __unicode__(self):
-        return u'%s >%s< %s' % (unicode(self.from_creator),
-                                unicode(self.relation_type),
-                                unicode(self.to_creator)
+        return '%s >%s< %s' % (str(self.from_creator),
+                                str(self.relation_type),
+                                str(self.to_creator)
                                 )
 
 
@@ -6575,8 +6575,8 @@ class CreatorNameDetailRevision(Revision):
         self.creator_name_detail = value
 
     def __unicode__(self):
-        return u'%s - %s (%s)' % (
-            unicode(self.creator), unicode(self.name), unicode(self.type.type))
+        return '%s - %s (%s)' % (
+            str(self.creator), str(self.name), str(self.type.type))
 
     # #####################################################################
     # Old methods. t.b.c, if deprecated.
@@ -6656,8 +6656,8 @@ class CreatorSchoolRevision(Revision):
         return self.creator_school.get_absolute_url()
 
     def __unicode__(self):
-        return u'%s - %s' % (
-            unicode(self.creator), unicode(self.school.school_name))
+        return '%s - %s' % (
+            str(self.creator), str(self.school.school_name))
 
     # #####################################################################
     # Old methods. t.b.c, if deprecated.
@@ -6765,8 +6765,8 @@ class CreatorDegreeRevision(Revision):
         return self.creator_degree.get_absolute_url()
 
     def __unicode__(self):
-        return u'%s - %s' % (
-            unicode(self.creator), unicode(self.degree.degree_name))
+        return '%s - %s' % (
+            str(self.creator), str(self.degree.degree_name))
 
     # #####################################################################
     # Old methods. t.b.c, if deprecated.
@@ -6869,7 +6869,7 @@ class CreatorMembershipRevision(Revision):
         return self.creator_membership.get_absolute_url()
 
     def __unicode__(self):
-        return u'%s: %s' % (self.creator, unicode(self.organization_name))
+        return '%s: %s' % (self.creator, str(self.organization_name))
 
     # #####################################################################
     # Old methods. t.b.c, if deprecated.
@@ -7091,7 +7091,7 @@ class CreatorArtInfluenceRevision(Revision):
         else:
             influence = self.influence_link
 
-        return u'%s: %s' % (self.creator, influence)
+        return '%s: %s' % (self.creator, influence)
 
     # #####################################################################
     # Old methods. t.b.c, if deprecated.
@@ -7248,8 +7248,8 @@ class CreatorNonComicWorkRevision(Revision):
         return self.creator_non_comic_work.get_absolute_url()
 
     def __unicode__(self):
-        return u'%s: %s' % (unicode(self.creator),
-                            unicode(self.publication_title))
+        return '%s: %s' % (str(self.creator),
+                            str(self.publication_title))
 
     # #####################################################################
     # Old methods. t.b.c, if deprecated.

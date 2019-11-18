@@ -75,7 +75,7 @@ class Feature(GcdData):
                 kwargs={'feature_id': self.id})
 
     def __unicode__(self):
-        return unicode('%s (%s)' % (self.name, self.language.name))
+        return str('%s (%s)' % (self.name, self.language.name))
 
 
 class FeatureLogo(GcdData):
@@ -137,7 +137,7 @@ class FeatureLogo(GcdData):
         return self.__unicode__()
 
     def __unicode__(self):
-        return unicode(self.name)
+        return str(self.name)
 
 
 class FeatureRelation(GcdLink):
@@ -160,7 +160,7 @@ class FeatureRelation(GcdLink):
     notes = models.TextField()
 
     def __unicode__(self):
-        return '%s >Relation< %s :: %s' % (unicode(self.from_feature),
-                                           unicode(self.to_feature),
-                                           unicode(self.relation_type)
+        return '%s >Relation< %s :: %s' % (str(self.from_feature),
+                                           str(self.to_feature),
+                                           str(self.relation_type)
                                           )
