@@ -24,7 +24,7 @@ class FeatureRelationType(models.Model):
     description = models.CharField(max_length=255)
     reverse_description = models.CharField(max_length=255)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 
@@ -36,7 +36,7 @@ class FeatureType(models.Model):
 
     name = models.CharField(max_length=255, db_index=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 
@@ -74,7 +74,7 @@ class Feature(GcdData):
                 'show_feature',
                 kwargs={'feature_id': self.id})
 
-    def __unicode__(self):
+    def __str__(self):
         return str('%s (%s)' % (self.name, self.language.name))
 
 
@@ -134,9 +134,9 @@ class FeatureLogo(GcdData):
             kwargs={'feature_logo_id': self.id } )
 
     def full_name(self):
-        return self.__unicode__()
+        return self.__str__()
 
-    def __unicode__(self):
+    def __str__(self):
         return str(self.name)
 
 
@@ -159,7 +159,7 @@ class FeatureRelation(GcdLink):
                                       related_name='relation_type')
     notes = models.TextField()
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s >Relation< %s :: %s' % (str(self.from_feature),
                                            str(self.to_feature),
                                            str(self.relation_type)
