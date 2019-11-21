@@ -1571,11 +1571,11 @@ class Revision(models.Model):
         # old values even for deprecated fields.
         rev_kwargs = {field: getattr(data_object, field)
                       for field
-                      in list(cls._get_single_value_fields()) - exclude}
+                      in set(cls._get_single_value_fields()) - exclude}
 
         # Keywords are not assignable but behave the same way whenever
         # they are present, so handle them here.
-        if 'keywords' in list(cls._get_regular_fields()) - exclude:
+        if 'keywords' in set(cls._get_regular_fields()) - exclude:
             rev_kwargs['keywords'] = get_keywords(data_object)
 
         # Instantiate the revision.  Since we do not know the exact
@@ -1601,7 +1601,7 @@ class Revision(models.Model):
 
         # Populate all of the many to many relations that don't use
         # their own separate revision classes.
-        for m2m in list(revision._get_multi_value_fields()) - exclude:
+        for m2m in set(revision._get_multi_value_fields()) - exclude:
             getattr(revision, m2m).add(*list(getattr(data_object, m2m).all()))
         revision._post_m2m_add(fork=fork, fork_source=data_object,
                                exclude=exclude)
@@ -1710,7 +1710,7 @@ class Revision(models.Model):
 
         deltas = {
             k: new_counts.get(k, 0) - old_counts.get(k, 0)
-            for k in list(old_counts) | list(new_counts)
+            for k in set(old_counts) | set(new_counts)
         }
         if any(deltas.values()) or True in list(changes.values()):
             for parent_tuple in self._get_parent_field_tuples():
