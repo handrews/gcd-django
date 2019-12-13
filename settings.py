@@ -426,6 +426,12 @@ except ImportError:
 # Code dependent on debug or maintenance flag states.
 #################################################################################
 
+# Don't change this directly, just change DEBUG and BETA.
+# We want to make a few things easier when setting up
+# a development environment, but want BETA to be as close
+# to production as possible.
+DEVENV = DEBUG and not BETA
+
 #GCD Official name field name in NameType model
 GCD_OFFICIAL_NAME_FIELDNAME = 'GCD Official'
 

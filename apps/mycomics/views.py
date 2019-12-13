@@ -64,6 +64,24 @@ def display_message(request):
 
 @login_required
 def collections_list(request):
+    if settings.DEVENV
+        # Fixture loading can't handle the cyclic references,
+        # so hotfix that when in dev environments.
+        # Don't hotfix beta, as we want it to behave more like
+        # production, and it shouldn't have this problem anyway.
+        coll = request.user.collector
+        needs_save = False
+        if coll.default_have_collection is None:
+            coll.default_have_collection = coll.collections.get(
+                name='Default have collection')
+            needs_save = True
+        if coll.default_want_collection is None:
+            coll.default_want_collection = coll.collections.get(
+                name='Default want collection')
+            needs_save = True
+        if needs_save:
+            coll.save()
+
     def_have = request.user.collector.default_have_collection
     def_want = request.user.collector.default_want_collection
     collection_list = request.user.collector.collections.exclude(
