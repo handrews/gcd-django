@@ -46,6 +46,10 @@
     color: red;
 }
 
+.announcement {
+    color: #D3F8D3;
+}
+
 .btn-group > .my-btn {
     position: absolute;
     left: -35px;

@@ -28,6 +28,7 @@
     <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
       <ul class="nav navbar-nav" id="navbar-main">
         <li><a href="#help-item" data-toggle="modal">{% trans 'Help' %}</a></li>
+        <li><a href="https://groups.google.com/a/comics.org/forum/#!forum/mycomics-users">{% trans 'Forum' %}</a></li>
       </ul>
     </div>
     <!-- /.navbar-collapse -->
@@ -39,6 +40,16 @@
   <p class="text-center">
   Backed by the largest comic database on the planet, my.comics.org allows you to track your comic collection.
   </p>
+  <p>
+  <div class="announcement">
+  <p class="text-center">
+  As of December 2019, my.comics.org is being givin a significant overhaul.
+  Please join our
+  <a href="https://groups.google.com/a/comics.org/forum/#!forum/mycomics-users">my.comics users' discussion group</a>
+  if you would like to influence new features and UI designs, or if you are
+  looking for help using the site.
+  </p>
+  </div>
   {% if form.errors %}
     <div class="alert alert-danger">
       {% trans "Your username and password didn't match. Please try again." %}
